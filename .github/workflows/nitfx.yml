@@ -3,6 +3,8 @@ name: NitFX
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
+  issue_comment:
+    types: [created]
 
 jobs:
   review:

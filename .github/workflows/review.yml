@@ -23,16 +23,31 @@ on:
 
 jobs:
   review:
-    if: github.event.pull_request.user.login == github.repository_owner && !github.event.pull_request.draft
+    if: >-
+      (github.event_name == 'pull_request'
+        && github.event.pull_request.user.login == github.repository_owner
+        && !github.event.pull_request.draft)
+      || (github.event_name == 'issue_comment'
+        && github.event.issue.pull_request
+        && startsWith(github.event.comment.body, '/review')
+        && github.event.comment.user.login == github.repository_owner)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
       pull-requests: write
+    env:
+      PR: ${{ github.event.pull_request.number || github.event.issue.number }}
     steps:
+      - name: Acknowledge /review
+        if: github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api "repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" -f content=eyes
+
       - uses: actions/checkout@v5
         with:
-          fetch-depth: 0
+          ref: refs/pull/${{ env.PR }}/head
 
       - name: Install fx
         run: |
@@ -55,17 +70,28 @@ jobs:
             models: { llm: $model }
           }' > ~/.fx/settings.json
 
+      - name: Build prompt
+        env:
+          GH_TOKEN: ${{ github.token }}
+          COMMENT: ${{ github.event.comment.body }}
+        run: |
+          {
+            cat "${{ inputs.prompt_file }}"
+            echo "${COMMENT#/review}"
+            echo
+            gh pr diff "$PR"
+          } > "$RUNNER_TEMP/prompt.md"
+
       - name: Review
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
           EFFORT: ${{ inputs.effort }}
         run: |
-          { cat "${{ inputs.prompt_file }}"; echo; git diff "origin/${{ github.base_ref }}...HEAD"; } \
-            | fx ask --json --no-save --full-access ${EFFORT:+--effort "$EFFORT"} \
-            > review.json
-          jq -r .final_output review.json > review.md
+          fx ask --json --no-save --full-access ${EFFORT:+--effort "$EFFORT"} \
+            < "$RUNNER_TEMP/prompt.md" > "$RUNNER_TEMP/review.json"
+          jq -r .final_output "$RUNNER_TEMP/review.json" > "$RUNNER_TEMP/review.md"
 
       - name: Comment
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file review.md --edit-last --create-if-none
+        run: gh pr comment "$PR" --body-file "$RUNNER_TEMP/review.md" --edit-last --create-if-none
