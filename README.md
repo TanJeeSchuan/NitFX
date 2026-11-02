@@ -41,6 +41,7 @@ Report only real bugs, with file:line. If nothing is wrong, say LGTM.
 | `model` | required | Model id |
 | `effort` | unset | Passed to `fx --effort` (e.g. `low`, `medium`, `high`) |
 | `prompt_file` | `.github/nitfx.md` | Path in the reviewed repo |
-| `fx_version` | `0.0.16` | |
+
+fx is installed at its latest release on every run.
 
 Secret `LLM_API_KEY` is sent as a bearer token.
