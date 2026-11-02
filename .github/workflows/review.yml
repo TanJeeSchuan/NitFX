@@ -1,0 +1,68 @@
+name: NitFX review
+
+on:
+  workflow_call:
+    inputs:
+      base_url:
+        description: OpenAI-compatible API prefix; fx appends /chat/completions
+        type: string
+        required: true
+      model:
+        type: string
+        required: true
+      prompt_file:
+        type: string
+        default: .github/nitfx.md
+      fx_version:
+        type: string
+        default: 0.0.16
+    secrets:
+      LLM_API_KEY:
+        required: true
+
+jobs:
+  review:
+    if: github.event.pull_request.user.login == github.repository_owner && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install fx
+        run: |
+          curl -fsSL https://fx.sh/setup.sh | bash -s -- "${{ inputs.fx_version }}"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Configure endpoint
+        env:
+          LLM_BASE_URL: ${{ inputs.base_url }}
+          LLM_MODEL: ${{ inputs.model }}
+        run: |
+          mkdir -p ~/.fx
+          jq -n --arg url "$LLM_BASE_URL" --arg model "$LLM_MODEL" '{
+            provider: "llm",
+            providers: { llm: {
+              protocol: "openai-chat-completions",
+              base_url: $url,
+              auth: { type: "bearer", env: "LLM_API_KEY" }
+            }},
+            models: { llm: $model }
+          }' > ~/.fx/settings.json
+
+      - name: Review
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+        run: |
+          { cat "${{ inputs.prompt_file }}"; echo; git diff "origin/${{ github.base_ref }}...HEAD"; } \
+            | fx ask --no-save --no-color --full-access \
+            > review.md
+
+      - name: Comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment "${{ github.event.pull_request.number }}" --body-file review.md --edit-last --create-if-none
