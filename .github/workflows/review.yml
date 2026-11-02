@@ -10,6 +10,10 @@ on:
       model:
         type: string
         required: true
+      effort:
+        description: Passed to fx --effort when set (e.g. low, medium, high)
+        type: string
+        default: ""
       prompt_file:
         type: string
         default: .github/nitfx.md
@@ -57,9 +61,10 @@ jobs:
       - name: Review
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          EFFORT: ${{ inputs.effort }}
         run: |
           { cat "${{ inputs.prompt_file }}"; echo; git diff "origin/${{ github.base_ref }}...HEAD"; } \
-            | fx ask --no-save --no-color --full-access \
+            | fx ask --no-save --no-color --full-access ${EFFORT:+--effort "$EFFORT"} \
             > review.md
 
       - name: Comment

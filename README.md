@@ -39,6 +39,7 @@ Report only real bugs, with file:line. If nothing is wrong, say LGTM.
 |---|---|---|
 | `base_url` | required | API prefix; fx appends `/chat/completions` |
 | `model` | required | Model id |
+| `effort` | unset | Passed to `fx --effort` (e.g. `low`, `medium`, `high`) |
 | `prompt_file` | `.github/nitfx.md` | Path in the reviewed repo |
 | `fx_version` | `0.0.16` | |
 
