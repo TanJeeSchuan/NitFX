@@ -30,7 +30,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -61,8 +61,9 @@ jobs:
           EFFORT: ${{ inputs.effort }}
         run: |
           { cat "${{ inputs.prompt_file }}"; echo; git diff "origin/${{ github.base_ref }}...HEAD"; } \
-            | fx ask --no-save --no-color --full-access ${EFFORT:+--effort "$EFFORT"} \
-            > review.md
+            | fx ask --json --no-save --full-access ${EFFORT:+--effort "$EFFORT"} \
+            > review.json
+          jq -r .final_output review.json > review.md
 
       - name: Comment
         env:
