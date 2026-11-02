@@ -3,6 +3,8 @@ name: NitFX
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
+  issue_comment:
+    types: [created]
 
 jobs:
   review:
@@ -13,5 +15,6 @@ jobs:
     with:
       base_url: https://api.tanjs.dev/v1
       model: gpt-6.1-sol
+      effort: high
     secrets:
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
