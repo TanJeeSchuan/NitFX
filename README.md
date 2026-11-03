@@ -35,6 +35,20 @@ Review this PR diff. Read surrounding code if needed.
 Report only real bugs, with file:line. If nothing is wrong, say LGTM.
 ```
 
+## Letting the reviewer run code
+
+The reviewer has a shell in the checked-out PR, but the runner has only what `ubuntu-latest` ships. Pass `setup` to install your toolchain and dependencies, so it can run tests to confirm a finding:
+
+```yaml
+    with:
+      setup: |
+        curl -fsSL https://bun.sh/install | bash -s bun-v1.4.4
+        echo "$HOME/.bun/bin" >> "$GITHUB_PATH"
+        ~/.bun/bin/bun install --frozen-lockfile
+```
+
+It runs as a shell step after checkout, before `LLM_API_KEY` is in any step's environment. Write to `$GITHUB_PATH` to put tools on the reviewer's `PATH`. Say in your prompt what it may run.
+
 ## When it reviews
 
 The `on:` block is the setting.
