@@ -28,11 +28,13 @@ jobs:
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
 ```
 
-`.github/nitfx.md`, the review prompt (the PR diff is appended):
+`.github/nitfx.md`, the review prompt. After it come the PR's title, description and comments, then the diff. Only the repo owner's comments and the bot's own review are included: the reviewer runs with a shell and the API key, so text anyone else posts never reaches it.
 
 ```md
-Review this PR diff. Read surrounding code if needed.
-Report only real bugs, with file:line. If nothing is wrong, say LGTM.
+Review every changed file before reporting. List every real bug, with file:line,
+before confirming any, so one review finds them all. Don't repeat a finding the
+PR conversation shows was already fixed or rejected with a reason, unless the
+reason is wrong. If nothing is wrong, say LGTM.
 ```
 
 ## Letting the reviewer run code

@@ -80,14 +80,26 @@ jobs:
             models: { llm: $model }
           }' > ~/.fx/settings.json
 
+      # The PR's description and its conversation reach the reviewer, so it sees
+      # what the author already fixed or rejected, and its own last review.
+      # Comments come only from the repo owner and this bot: the reviewer runs
+      # with a shell and the API key, so text anyone else posts never reaches it.
       - name: Build prompt
         env:
           GH_TOKEN: ${{ github.token }}
           COMMENT: ${{ github.event.comment.body }}
+          OWNER: ${{ github.repository_owner }}
         run: |
           {
             cat "${{ inputs.prompt_file }}"
             echo "${COMMENT#/review}"
+            echo
+            echo "# PR description and conversation"
+            echo
+            gh pr view "$PR" --json title,body,comments --jq \
+              '"## " + .title + "\n\n" + .body + "\n\n" + ([.comments[] | select(.author.login == env.OWNER or .author.login == "github-actions") | "### Comment by " + .author.login + "\n\n" + .body] | join("\n\n"))'
+            echo
+            echo "# Diff"
             echo
             gh pr diff "$PR"
           } > "$RUNNER_TEMP/prompt.md"
