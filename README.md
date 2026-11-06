@@ -51,6 +51,10 @@ The reviewer has a shell in the checked-out PR, but the runner has only what `ub
 
 It runs as a shell step after checkout, before `LLM_API_KEY` is in any step's environment. Write to `$GITHUB_PATH` to put tools on the reviewer's `PATH`. Say in your prompt what it may run.
 
+## How long it may run
+
+The review job may run for `timeout_minutes`, 30 by default. A job cut off at its limit shows as cancelled, with no comment.
+
 ## When it reviews
 
 The `on:` block is the setting.
