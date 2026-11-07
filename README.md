@@ -76,6 +76,14 @@ Comment `/review` on a PR to review it now. Text after the command is added to t
 /review focus on the migration, ignore the tests
 ```
 
+Flags at the start of the comment override the caller's `model` and `effort` for that run, through the same `base_url`:
+
+```
+/review --model kimi-k3.1-pro --effort xhigh focus on the migration
+```
+
+A model id is letters, digits and `._/:-`; an effort is `auto`, `low`, `medium`, `high`, `xhigh` or `max`. Anything else fails the run. Each review ends with the model and effort that wrote it.
+
 The bot reacts with 👀 when it starts. `issue_comment` workflows run from the default branch, so `/review` only works once the caller workflow is on `main`.
 
 `/review` works on PRs from anyone, including forks. The review checks out the PR, so its `.github/nitfx.md` and `AGENTS.md` steer the model, and fx runs with full access next to `LLM_API_KEY`. Read a stranger's PR before you `/review` it.

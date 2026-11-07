@@ -68,10 +68,34 @@ jobs:
           curl -fsSL https://fx.sh/setup.sh | bash
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
+      # `/review --model <id> --effort <level> <text>`: flags at the start of
+      # the comment, in any order, override this run's model and effort; the
+      # text after them is added to the prompt. Only the repo owner reaches
+      # this, and each value is checked before any step uses it.
+      - name: Read /review flags
+        id: flags
+        env:
+          COMMENT: ${{ github.event.comment.body }}
+          MODEL: ${{ inputs.model }}
+          EFFORT: ${{ inputs.effort }}
+        run: |
+          rest="${COMMENT#/review}"
+          model="$MODEL" effort="$EFFORT"
+          while [[ $rest =~ ^[[:space:]]*--(model|effort)[[:space:]]+([^[:space:]]+)(.*)$ ]]; do
+            value="${BASH_REMATCH[2]}" rest="${BASH_REMATCH[3]}"
+            case "${BASH_REMATCH[1]}" in
+              model) [[ $value =~ ^[A-Za-z0-9][A-Za-z0-9._/:-]*$ ]] || { echo "::error::--model $value is not a model id"; exit 1; }; model="$value" ;;
+              effort) [[ $value =~ ^(auto|low|medium|high|xhigh|max)$ ]] || { echo "::error::--effort $value is not auto, low, medium, high, xhigh or max"; exit 1; }; effort="$value" ;;
+            esac
+          done
+          printf '%s\n' "$rest" > "$RUNNER_TEMP/request.md"
+          echo "model=$model" >> "$GITHUB_OUTPUT"
+          echo "effort=$effort" >> "$GITHUB_OUTPUT"
+
       - name: Configure endpoint
         env:
           LLM_BASE_URL: ${{ inputs.base_url }}
-          LLM_MODEL: ${{ inputs.model }}
+          LLM_MODEL: ${{ steps.flags.outputs.model }}
         run: |
           mkdir -p ~/.fx
           jq -n --arg url "$LLM_BASE_URL" --arg model "$LLM_MODEL" '{
@@ -91,12 +115,11 @@ jobs:
       - name: Build prompt
         env:
           GH_TOKEN: ${{ github.token }}
-          COMMENT: ${{ github.event.comment.body }}
           OWNER: ${{ github.repository_owner }}
         run: |
           {
             cat "${{ inputs.prompt_file }}"
-            echo "${COMMENT#/review}"
+            cat "$RUNNER_TEMP/request.md"
             echo
             echo "# PR description and conversation"
             echo
@@ -111,11 +134,12 @@ jobs:
       - name: Review
         env:
           LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-          EFFORT: ${{ inputs.effort }}
+          EFFORT: ${{ steps.flags.outputs.effort }}
         run: |
           fx ask --json --no-save --full-access ${EFFORT:+--effort "$EFFORT"} \
             < "$RUNNER_TEMP/prompt.md" > "$RUNNER_TEMP/review.json"
           jq -r .final_output "$RUNNER_TEMP/review.json" > "$RUNNER_TEMP/review.md"
+          printf '\n<sub>%s%s</sub>\n' "${{ steps.flags.outputs.model }}" "${EFFORT:+, effort $EFFORT}" >> "$RUNNER_TEMP/review.md"
 
       - name: Comment
         env:
